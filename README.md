@@ -37,7 +37,7 @@ git clone https://github.com/denzel-robin/Light-Novel-Generator.git
 cd Light-Novel-Generator
 ```
 
-## 🚀 Usage
+## Usage
 ### Run the AI Novel Generator
 ```sh
 python main.py
