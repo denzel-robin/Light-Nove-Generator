@@ -71,11 +71,14 @@ class BookGenerator:
             metadata={"created_by": "AI", "version": "1.0"},
         )
 
-    def create_characters(self) -> List[Character]:
+    def create_characters(
+        self, genre: str, themes: List[str], title: str
+    ) -> List[Character]:
         prompt = """
-        Generate five unique characters for a novel.
+        Generate five unique characters for the novel with title {title}.
         Each character should have a name, background, personality traits, goals, and relationships.
-        Provide the result in JSON format:
+        Generate the characters based on themes {themes} based on genre {genre}.
+        Provide the result in JSON format example given:
         [
             {
                 "name": "John Doe",
@@ -100,19 +103,25 @@ class BookGenerator:
             print("Error: Failed to parse character response.")
             return []
 
-    def create_plot_outline(self, num_chapters: int) -> Dict:
+    def create_plot_outline(
+        self, num_chapters: int, genre: str, themes: List[str], title: str
+    ) -> Dict:
         prompt = f"""
-        Generate a structured plot outline for a novel with {num_chapters} chapters.
+        Generate a structured plot outline for a {genre} novel titled "{title}" with {num_chapters} chapters.
+        The novel explores the following themes: {', '.join(themes)}.
+        
         Provide a short summary for each chapter in JSON format.
         Example:
         {{
             "chapters": [
-                {{"summary": "Introduction of main characters and setting."}},
-                {{"summary": "The protagonist encounters their first major challenge."}}
+                {{"chapter_number": 1, "title": "A New Beginning", "summary": "Introduce the main characters and setting."}},
+                {{"chapter_number": 2, "title": "A Call to Action", "summary": "The protagonist faces their first major challenge."}}
             ]
         }}
         """
+
         response = self.generate_response(prompt)
+        print("AI response:\n", response)
         try:
             plot = json.loads(response)
             if "chapters" in plot and isinstance(plot["chapters"], list):
@@ -144,17 +153,17 @@ class BookGenerator:
             word_count=len(content.split()),
         )
 
-    def export_book(self, output_dir: str) -> str:
+    def export_book(self, book: Book, output_dir: str) -> str:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
         output_path = os.path.join(output_dir, "generated_novel.txt")
         with open(output_path, "w", encoding="utf-8") as f:
-            f.write(f"Title: {self.book.title}\n")
-            f.write(f"Genre: {self.book.genre}\n")
-            f.write(f"Themes: {', '.join(self.book.themes)}\n\n")
+            f.write(f"Title: {book.title}\n")
+            f.write(f"Genre: {book.genre}\n")
+            f.write(f"Themes: {', '.join(book.themes)}\n\n")
 
-            for chapter in self.book.chapters:
+            for chapter in book.chapters:
                 f.write(f"Chapter {chapter.number}: {chapter.title}\n")
                 f.write(f"{chapter.summary}\n\n")
                 for scene in chapter.scenes:
@@ -179,13 +188,18 @@ def get_user_input() -> Dict:
 
 def main():
     user_input = get_user_input()
-    generator = BookGenerator(
-        model_name="aya-expanse:32b", min_words=800, max_words=2000
-    )
+    generator = BookGenerator(model_name="mistral:7b", min_words=800, max_words=2000)
 
     book = generator.initialize_book(user_input)
-    book.characters = generator.create_characters()
-    plot = generator.create_plot_outline(user_input["num_chapters"])
+    book.characters = generator.create_characters(
+        user_input["genre"], user_input["themes"], user_input["title"]
+    )
+    plot = generator.create_plot_outline(
+        user_input["num_chapters"],
+        user_input["genre"],
+        user_input["themes"],
+        user_input["title"],
+    )
 
     if not plot["chapters"]:
         print("⚠️ No chapters were generated. Exiting.")
@@ -195,7 +209,7 @@ def main():
         chapter = generator.generate_chapter(i + 1, plot["chapters"][i]["summary"])
         book.chapters.append(chapter)
 
-    output_path = generator.export_book("output")
+    output_path = generator.export_book(book, "output")
     print(f"Book saved to: {output_path}")
 
 
